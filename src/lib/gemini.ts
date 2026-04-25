@@ -21,7 +21,7 @@ export async function analyzeComplaint(text: string) {
   try {
     const ai = getAI();
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-latest",
+      model: "gemini-3-flash-preview",
       contents: `Analyze the following citizen grievance for the Lok Shikayat system and return a JSON object with:
         - sentiment: number (0 to 1, where 0 is very negative/angry and 1 is positive/neutral)
         - category: string (one of: Infrastructure, Sanitation, Traffic, Noise, Safety, Utilities, Environment, Other)
@@ -55,7 +55,7 @@ export async function getDashboardInsights(complaints: any[]) {
   try {
     const ai = getAI();
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-latest",
+      model: "gemini-3-flash-preview",
       contents: `Based on these recent complaints, provide 3 executive insights for the dashboard. 
         Return an array of strings.
         

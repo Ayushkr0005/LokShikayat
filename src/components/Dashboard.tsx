@@ -100,8 +100,7 @@ export default function Dashboard() {
             await setDoc(userRef, defaultProfile);
             setUserProfile(defaultProfile);
           } catch (error) {
-            console.error("Error creating user profile:", error);
-            setUserProfile(defaultProfile);
+            handleFirestoreError(error, OperationType.WRITE, 'users');
           }
         }
       }

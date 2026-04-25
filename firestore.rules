@@ -3,136 +3,156 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // ===============================================================
-    // Assumed Data Model
+    // Global Safety Net
     // ===============================================================
-    //
-    // Collection: organizations
-    // Fields: name, slug, plan, stripeCustomerId, ssoEnabled, createdAt
-    //
-    // Collection: users
-    // Fields: email, displayName, role, organizationId, mfaEnabled, createdAt
-    //
-    // Collection: complaints
-    // Fields: organizationId, title, description, status, priority, sentiment, category, createdAt
-    //
-    // Collection: aiUsageLogs
-    // Fields: organizationId, userId, model, inputTokens, outputTokens, costUSD, timestamp
-    //
-    // ===============================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
 
     // ===============================================================
-    // Helper Functions
+    // Helper Primitives
     // ===============================================================
 
-    function isAuthenticated() {
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
       return request.auth != null;
     }
 
     function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
+      return isSignedIn() && request.auth.uid == userId;
     }
 
-    function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
-
-    function isOrgMember(orgId) {
-      return isAuthenticated() && getUserData().organizationId == orgId;
-    }
-
-    function isCitizen() {
-      return isAuthenticated() && getUserData().role == 'citizen';
+    // Admin check - including the specific bootstrap email
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        request.auth.token.email == "ayushkr111999@gmail.com"
+      );
     }
 
     function isOfficer(orgId) {
-      return isOrgMember(orgId) && getUserData().role == 'officer';
+      // Officers must be in the organizations collection or have it in their profile
+      // For simplicity and to avoid O(n) reads in lists, we check the user profile role
+      // Note: In list operations, we prefer checking resource.data fields.
+      let user = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      return isSignedIn() && user.role == 'officer' && user.organizationId == orgId;
     }
 
     function isOrgAdmin(orgId) {
-      return isOrgMember(orgId) && getUserData().role == 'admin';
-    }
-
-    function isAdmin() {
-      return isAuthenticated() && 
-        (getUserData().role == 'admin' || 
-         (request.auth.token.email == "ayushkr111999@gmail.com" && request.auth.token.email_verified == true));
-    }
-
-    function hasOnlyAllowedFields(fields) {
-      return request.resource.data.keys().hasOnly(fields);
-    }
-
-    function isValidEmail(email) {
-      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+      let user = get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      return isSignedIn() && user.role == 'admin' && user.organizationId == orgId;
     }
 
     // ===============================================================
-    // Domain Validators
+    // Entity Validators
     // ===============================================================
-
-    function isValidOrganization(data) {
-      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
-             data.slug is string && data.slug.matches("^[a-z0-9-]+$") &&
-             data.plan in ['starter', 'growth', 'enterprise'];
-    }
 
     function isValidUser(data) {
-      return data.email is string && isValidEmail(data.email) &&
-             data.role in ['citizen', 'officer', 'admin'];
+      return (data.email == null || (data.email is string && data.email.size() < 256)) &&
+             data.role in ['citizen', 'officer', 'admin'] &&
+             (data.displayName == null || (data.displayName is string && data.displayName.size() < 100)) &&
+             data.createdAt is string;
     }
 
     function isValidComplaint(data) {
-      return data.authorId is string &&
+      return isValidId(data.authorId) &&
              data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
              data.description is string && data.description.size() < 5000 &&
-             data.status in ['submitted', 'in-review', 'in-progress', 'resolved', 'rejected'];
+             data.status in ['submitted', 'in-review', 'in-progress', 'resolved', 'rejected'] &&
+             data.priority in ['low', 'medium', 'high', 'critical'] &&
+             data.category in ['Infrastructure', 'Sanitation', 'Traffic', 'Noise', 'Safety', 'Utilities', 'Environment', 'Other'] &&
+             data.createdAt is string;
+    }
+
+    function isValidNotification(data) {
+      return isValidId(data.userId) &&
+             data.title is string && data.title.size() < 200 &&
+             data.message is string && data.message.size() < 1000 &&
+             data.type is string &&
+             data.read is bool &&
+             data.createdAt is string;
     }
 
     // ===============================================================
-    // Rules
+    // Collection Rules
     // ===============================================================
-
-    match /organizations/{orgId} {
-      allow read: if isOrgMember(orgId) || isAdmin();
-      allow create: if isAdmin();
-      allow update: if isOrgAdmin(orgId) || isAdmin();
-    }
 
     match /users/{userId} {
-      allow read: if isOwner(userId) || isOrgAdmin(resource.data.organizationId) || isAdmin();
-      allow create: if isAuthenticated() && isValidUser(request.resource.data) && (isOwner(userId) || isAdmin());
-      allow update: if isAuthenticated() && isValidUser(request.resource.data) && 
-                    (isOwner(userId) && request.resource.data.role == resource.data.role || isAdmin());
+      allow read: if isOwner(userId) || isAdmin();
+      
+      // Allow creation of first profile. Email can be null for anonymous users.
+      // Identity integrity: author/owner UID MUST match request.auth.uid
+      allow create: if isSignedIn() && isOwner(userId) && isValidUser(incoming());
+      
+      allow update: if isSignedIn() && (
+        isAdmin() || 
+        (isOwner(userId) && incoming().role == existing().role && incoming().organizationId == existing().organizationId)
+      ) && isValidUser(incoming());
+    }
+
+    match /organizations/{orgId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
     }
 
     match /complaints/{complaintId} {
-      allow read: if (isAuthenticated() && (
-        (isCitizen() && resource.data.authorId == request.auth.uid) ||
+      // Hardening Path Variable
+      allow get: if isSignedIn() && isValidId(complaintId) && (
+        resource.data.authorId == request.auth.uid || 
+        isAdmin() ||
         isOfficer(resource.data.organizationId) ||
-        isOrgAdmin(resource.data.organizationId) ||
-        isAdmin()
-      ));
-      allow create: if isAuthenticated() && 
-                    request.resource.data.authorId == request.auth.uid &&
-                    isValidComplaint(request.resource.data);
-      allow update: if isAuthenticated() && (
-        (isCitizen() && resource.data.authorId == request.auth.uid && request.resource.data.status == resource.data.status) ||
-        isOfficer(resource.data.organizationId) ||
-        isOrgAdmin(resource.data.organizationId) ||
-        isAdmin()
-      ) && isValidComplaint(request.resource.data);
+        isOrgAdmin(resource.data.organizationId)
+      );
+
+      // Secure List Queries
+      allow list: if isSignedIn() && (
+        resource.data.authorId == request.auth.uid || 
+        isAdmin() ||
+        isOfficer(resource.data.organizationId)
+      );
+
+      allow create: if isSignedIn() && 
+                    incoming().authorId == request.auth.uid &&
+                    isValidComplaint(incoming());
+
+      allow update: if isSignedIn() && (
+        isAdmin() ||
+        // Citizens can only cancel or update description if not resolved
+        (resource.data.authorId == request.auth.uid && 
+         existing().status == 'submitted' && 
+         incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'category', 'priority'])) ||
+        // Tier 2: Officers can update status and sentiment
+        (isOfficer(resource.data.organizationId) && 
+         incoming().diff(existing()).affectedKeys().hasOnly(['status', 'sentiment', 'updatedAt']))
+      ) && isValidComplaint(incoming());
+
       allow delete: if isAdmin();
     }
 
     match /notifications/{notificationId} {
-      allow read: if isOwner(resource.data.userId);
-      allow create: if isAuthenticated();
-      allow update: if isOwner(resource.data.userId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      allow get: if isSignedIn() && isValidId(notificationId) && resource.data.userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+      
+      allow create: if isSignedIn(); // Systems create notifications
+      allow update: if isOwner(existing().userId) && 
+                    incoming().diff(existing()).affectedKeys().hasOnly(['read']);
+      allow delete: if isOwner(existing().userId) || isAdmin();
     }
 
-    // Default deny
-    match /{document=**} {
-      allow read, write: if false;
+    match /admins/{adminId} {
+      allow read: if isAdmin();
+      allow write: if false; // Managed via console
     }
   }
 }

@@ -1,6 +1,6 @@
 {
-  "name": "Lok Shikayat",
-  "description": "Digital Complaint Management System with role-based access, real-time tracking, and AI-powered analytics.",
+  "name": "LokShikayat",
+  "description": "Digital Grievance Redressal System with AI-powered analytics, QR tracking, and multi-language support (English/Hindi).",
   "requestFramePermissions": [
     "camera",
     "geolocation"

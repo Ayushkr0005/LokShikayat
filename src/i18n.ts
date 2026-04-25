@@ -39,7 +39,20 @@ const resources = {
       "sign_out": "Sign Out",
       "language": "Language",
       "english": "English",
-      "hindi": "Hindi"
+      "hindi": "Hindi",
+      "login": "Login",
+      "register": "Register",
+      "email": "Email",
+      "password": "Password",
+      "role": "Role",
+      "citizen": "Citizen",
+      "officer": "Officer",
+      "admin": "Administrator",
+      "no_account": "Don't have an account?",
+      "has_account": "Already have an account?",
+      "create_account": "Create Account",
+      "test_credentials": "Test Credentials",
+      "admin_username": "Username"
     }
   },
   hi: {
@@ -78,7 +91,20 @@ const resources = {
       "sign_out": "साइन आउट",
       "language": "भाषा",
       "english": "अंग्रेज़ी",
-      "hindi": "हिंदी"
+      "hindi": "हिंदी",
+      "login": "लॉगिन",
+      "register": "रजिस्टर",
+      "email": "ईमेल",
+      "password": "पासवर्ड",
+      "role": "भूमिका",
+      "citizen": "नागरिक",
+      "officer": "अधिकारी",
+      "admin": "प्रशासक",
+      "no_account": "खाता नहीं है?",
+      "has_account": "पहले से खाता है?",
+      "create_account": "खाता बनाएं",
+      "test_credentials": "परीक्षण क्रेडेंशियल्स",
+      "admin_username": "यूज़रनेम"
     }
   }
 };
