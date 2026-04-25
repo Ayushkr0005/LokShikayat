@@ -250,7 +250,15 @@ export default function Dashboard() {
             </div>
             <div className="flex flex-col">
               <span className="font-extrabold text-lg leading-tight text-white tracking-tight">
-                {t('app_name').split(' ')[0]} <span className="text-primary">{t('app_name').split(' ')[1]}</span>
+                {t('app_name').includes(' ') ? (
+                  <>
+                    {t('app_name').split(' ')[0]} <span className="text-primary">{t('app_name').split(' ')[1]}</span>
+                  </>
+                ) : (
+                  <>
+                    {t('app_name').slice(0, 3)}<span className="text-primary">{t('app_name').slice(3)}</span>
+                  </>
+                )}
               </span>
               <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Digital Governance</span>
             </div>

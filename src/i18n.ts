@@ -5,7 +5,7 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 const resources = {
   en: {
     translation: {
-      "app_name": "Lok Shikayat",
+      "app_name": "LokShikayat",
       "slogan": "Digital Complaint Management System",
       "login_title": "Welcome to Lok Shikayat",
       "login_subtitle": "Secure, Scalable, AI-Powered Grievance Redressal",
@@ -44,7 +44,7 @@ const resources = {
   },
   hi: {
     translation: {
-      "app_name": "लोक शिकायत",
+      "app_name": "LokShikayat",
       "slogan": "डिजिटल शिकायत प्रबंधन प्रणाली",
       "login_title": "लोक शिकायत में आपका स्वागत है",
       "login_subtitle": "सुरक्षित, स्केलेबल, एआई-संचालित शिकायत निवारण",

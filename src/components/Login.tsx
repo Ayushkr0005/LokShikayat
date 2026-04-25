@@ -53,7 +53,15 @@ export default function Login() {
             <MessageSquare className="w-10 h-10 text-white" />
           </div>
           <h1 className="text-3xl font-extrabold text-text-main mb-2 tracking-tight">
-            {t('app_name').split(' ')[0]} <span className="text-primary">{t('app_name').split(' ')[1]}</span>
+            {t('app_name').includes(' ') ? (
+              <>
+                {t('app_name').split(' ')[0]} <span className="text-primary">{t('app_name').split(' ')[1]}</span>
+              </>
+            ) : (
+              <>
+                {t('app_name').slice(0, 3)}<span className="text-primary">{t('app_name').slice(3)}</span>
+              </>
+            )}
           </h1>
           <p className="text-text-muted text-sm max-w-[280px]">
             {t('login_subtitle')}

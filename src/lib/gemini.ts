@@ -1,9 +1,25 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+let aiInstance: GoogleGenAI | null = null;
+
+function getAI() {
+  if (!aiInstance) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.warn("GEMINI_API_KEY is not defined. AI features will be disabled.");
+      // We still initialize with a dummy key to avoid breaking the SDK if it's strictly required, 
+      // but the calls will fail gracefully later.
+      aiInstance = new GoogleGenAI({ apiKey: "MISSING_KEY" });
+    } else {
+      aiInstance = new GoogleGenAI({ apiKey });
+    }
+  }
+  return aiInstance;
+}
 
 export async function analyzeComplaint(text: string) {
   try {
+    const ai = getAI();
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-latest",
       contents: `Analyze the following citizen grievance for the Lok Shikayat system and return a JSON object with:
@@ -37,6 +53,7 @@ export async function analyzeComplaint(text: string) {
 
 export async function getDashboardInsights(complaints: any[]) {
   try {
+    const ai = getAI();
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-latest",
       contents: `Based on these recent complaints, provide 3 executive insights for the dashboard. 
