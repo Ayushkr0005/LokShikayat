@@ -1,0 +1,138 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: organizations
+    // Fields: name, slug, plan, stripeCustomerId, ssoEnabled, createdAt
+    //
+    // Collection: users
+    // Fields: email, displayName, role, organizationId, mfaEnabled, createdAt
+    //
+    // Collection: complaints
+    // Fields: organizationId, title, description, status, priority, sentiment, category, createdAt
+    //
+    // Collection: aiUsageLogs
+    // Fields: organizationId, userId, model, inputTokens, outputTokens, costUSD, timestamp
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isOrgMember(orgId) {
+      return isAuthenticated() && getUserData().organizationId == orgId;
+    }
+
+    function isCitizen() {
+      return isAuthenticated() && getUserData().role == 'citizen';
+    }
+
+    function isOfficer(orgId) {
+      return isOrgMember(orgId) && getUserData().role == 'officer';
+    }
+
+    function isOrgAdmin(orgId) {
+      return isOrgMember(orgId) && getUserData().role == 'admin';
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (getUserData().role == 'admin' || 
+         (request.auth.token.email == "ayushkr111999@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidOrganization(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.slug is string && data.slug.matches("^[a-z0-9-]+$") &&
+             data.plan in ['starter', 'growth', 'enterprise'];
+    }
+
+    function isValidUser(data) {
+      return data.email is string && isValidEmail(data.email) &&
+             data.role in ['citizen', 'officer', 'admin'];
+    }
+
+    function isValidComplaint(data) {
+      return data.authorId is string &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.description is string && data.description.size() < 5000 &&
+             data.status in ['submitted', 'in-review', 'in-progress', 'resolved', 'rejected'];
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /organizations/{orgId} {
+      allow read: if isOrgMember(orgId) || isAdmin();
+      allow create: if isAdmin();
+      allow update: if isOrgAdmin(orgId) || isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isOrgAdmin(resource.data.organizationId) || isAdmin();
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && (isOwner(userId) || isAdmin());
+      allow update: if isAuthenticated() && isValidUser(request.resource.data) && 
+                    (isOwner(userId) && request.resource.data.role == resource.data.role || isAdmin());
+    }
+
+    match /complaints/{complaintId} {
+      allow read: if (isAuthenticated() && (
+        (isCitizen() && resource.data.authorId == request.auth.uid) ||
+        isOfficer(resource.data.organizationId) ||
+        isOrgAdmin(resource.data.organizationId) ||
+        isAdmin()
+      ));
+      allow create: if isAuthenticated() && 
+                    request.resource.data.authorId == request.auth.uid &&
+                    isValidComplaint(request.resource.data);
+      allow update: if isAuthenticated() && (
+        (isCitizen() && resource.data.authorId == request.auth.uid && request.resource.data.status == resource.data.status) ||
+        isOfficer(resource.data.organizationId) ||
+        isOrgAdmin(resource.data.organizationId) ||
+        isAdmin()
+      ) && isValidComplaint(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isOwner(resource.data.userId);
+      allow create: if isAuthenticated();
+      allow update: if isOwner(resource.data.userId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "Lok Shikayat",
+  "description": "Digital Complaint Management System with role-based access, real-time tracking, and AI-powered analytics.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}

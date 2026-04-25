@@ -1,0 +1,88 @@
+{
+  "entities": {
+    "organizations": {
+      "title": "Organization",
+      "description": "A tenant/department in the system.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "slug": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "slug"]
+    },
+    "users": {
+      "title": "User",
+      "description": "A user of the system.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["citizen", "officer", "admin"] },
+        "organizationId": { "type": "string" },
+        "languagePreference": { "type": "string", "enum": ["en", "hi"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "role"]
+    },
+    "complaints": {
+      "title": "Complaint",
+      "description": "A grievance record.",
+      "type": "object",
+      "properties": {
+        "organizationId": { "type": "string" },
+        "authorId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["submitted", "in-review", "in-progress", "resolved", "rejected"] },
+        "priority": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
+        "category": { "type": "string", "enum": ["Infrastructure", "Sanitation", "Traffic", "Noise", "Safety", "Utilities", "Environment", "Other"] },
+        "mediaUrl": { "type": "string" },
+        "location": { 
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lng": { "type": "number" },
+            "address": { "type": "string" }
+          }
+        },
+        "qrCode": { "type": "string" },
+        "sentiment": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["authorId", "title", "description", "status"]
+    },
+    "notifications": {
+      "title": "Notification",
+      "description": "Real-time alerts for users.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "read": { "type": "boolean" },
+        "type": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "title", "message"]
+    }
+  },
+  "firestore": {
+    "/organizations/{orgId}": {
+      "schema": "organizations",
+      "description": "Departments/Organizations"
+    },
+    "/users/{userId}": {
+      "schema": "users",
+      "description": "User profiles"
+    },
+    "/complaints/{complaintId}": {
+      "schema": "complaints",
+      "description": "Citizen complaints"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "notifications",
+      "description": "User notifications"
+    }
+  }
+}
